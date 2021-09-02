@@ -1,0 +1,17 @@
+{
+    "files.associations": {
+        "*.ts": "plaintext",
+        "main.h": "c",
+        "stm32f2xx_hal.h": "c",
+        "stm32f2xx_hal_conf.h": "c",
+        "ethernetif.h": "c",
+        "app_ethernet.h": "c",
+        "dhcp.h": "c",
+        "fs.h": "c",
+        "lwip.h": "c",
+        "fatfs.h": "c",
+        "httpd.h": "c",
+        "httpd_opts.h": "c"
+    },
+    "cmake.configureOnOpen": true
+}
