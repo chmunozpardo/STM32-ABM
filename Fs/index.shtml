@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Christopher's ABM</title>
+    <meta charset="utf-8" />
+  </head>
+  <body>
+    <!-- <img src="alma_logo.jpg" alt="Girl in a jacket" width="500" height="600"> -->
+    <form method="get" action="/leds.cgi">
+      <!--#tag1-->LED1 (green)
+      <br />
+      <!--#tag2-->LED2 (blue)
+      <br />
+      <!--#tag3-->LED3 (red)
+      <br />
+      Id
+      <br />
+      <!--#tag4-->
+      <br />
+      Message
+      <br />
+      <!--#tag5-->
+      <br />
+      <input value="Send" type="submit" />
+    </form>
+  </body>
+</html>

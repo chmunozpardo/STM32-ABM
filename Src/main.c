@@ -48,6 +48,10 @@
 
 /* Private variables ---------------------------------------------------------*/
 CAN_HandleTypeDef hcan1;
+CAN_TxHeaderTypeDef TxHeader;
+uint8_t TxData[128];
+uint32_t TxMailbox;
+HAL_StatusTypeDef err;
 
 UART_HandleTypeDef huart3;
 
@@ -59,8 +63,9 @@ PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
 /* USER CODE BEGIN PV */
 
-bool LD1ON = false;  // this variable will indicate if the LD3 LED on the board is ON or not
+bool LD1ON = false;  // this variable will indicate if the LD1 LED on the board is ON or not
 bool LD2ON = false;  // this variable will indicate if our LD2 LED on the board is ON or not
+bool LD3ON = false;  // this variable will indicate if our LD3 LED on the board is ON or not
 
 // just declaring the function for the compiler [= CGI #2 =]
 const char *LedCGIhandler(int iIndex, int iNumParams, char *pcParam[],
@@ -76,10 +81,10 @@ tCGI theCGItable[1];
 u16_t mySSIHandler(int iIndex, char *pcInsert, int iInsertLen);
 
 // [* SSI #2 *]
-#define numSSItags 3
+#define numSSItags 5
 
 // [* SSI #3 *]
-char const *theSSItags[numSSItags] = {"tag1", "tag2", "tag3"};
+char const *theSSItags[numSSItags] = {"tag1", "tag2", "tag3", "tag4", "tag5"};
 
 /* USER CODE BEGIN PV */
 
@@ -105,44 +110,68 @@ const char *LedCGIhandler(int iIndex, int iNumParams, char *pcParam[],
 
     if (iIndex == 0) {
         //turning the LED lights off
-        HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+        HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, GPIO_PIN_RESET);
+        // we put this variable to false to indicate that the LD1 LED on the board is not ON
+        LD1ON = false;
 
+        HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
         // we put this variable to false to indicate that the LD2 LED on the board is not ON
         LD2ON = false;
 
         HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_RESET);
-
-        // we put this variable to false to indicate that the LD* LED on the board is not ON
-        LD1ON = false;
+        // we put this variable to false to indicate that the LD3 LED on the board is not ON
+        LD3ON = false;
     }
 
     for (i = 0; i < iNumParams; i++) {
         if (strcmp(pcParam[i], "led") == 0) {
             if (strcmp(pcValue[i], "1") == 0) {
-                HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_SET);
-
-                // LD3 LED (red) on the board is ON!
+                HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, GPIO_PIN_SET);
+                // LD1 LED (green) on the board is ON!
                 LD1ON = true;
-
-            }
-
-            else if (strcmp(pcValue[i], "2") == 0) {
+            } else if (strcmp(pcValue[i], "2") == 0) {
                 HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
-
                 // LD2 LED (blue) on the board is ON!
                 LD2ON = true;
+            } else if (strcmp(pcValue[i], "3") == 0) {
+                HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_SET);
+                // LD3 LED (red) on the board is ON!
+                LD3ON = true;
             }
+        } else if (strcmp(pcParam[i], "id") == 0) {
+            unsigned int idValue;
+            sscanf(pcValue[i], "0x%x", &idValue);
+            TxHeader.StdId = (u_int8_t)idValue;
+            TxHeader.ExtId = 0x01;
         } else if (strcmp(pcParam[i], "message") == 0) {
-            setCursor(0, 1);
-            print("                    ");
-            setCursor(0, 1);
-            print(pcValue[i]);
+            unsigned int split_input;
+            const char comma_decode[4] = "%2C";
+            const char newline_decode[7] = "%0D%0A";
+            char *comma_token;
+            char *newline_token;
+            int count = 0;
+            newline_token = strtok(pcValue[i], newline_decode);
+            while (newline_token != NULL) {
+                comma_token = strtok(newline_token, comma_decode);
+                while (comma_token != NULL) {
+                    sscanf(comma_token, "0x%x", &split_input);
+                    TxData[count++] = (u_int8_t)split_input;
+                    comma_token = strtok(NULL, comma_decode);
+                }
+                newline_token = strtok(NULL, newline_decode);
+            }
+            TxHeader.DLC = count;
         }
     }
 
+    err = HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox);
+    if (err != HAL_OK) {
+        Error_Handler();
+    }
+
+    HAL_Delay(10);
     // the extension .shtml for SSI to work
     return "/index.shtml";
-
 }  // END [= CGI #5 =]
 
 // function to initialize CGI [= CGI #6 =]
@@ -158,59 +187,54 @@ u16_t mySSIHandler(int iIndex, char *pcInsert, int iInsertLen) {
     if (iIndex == 0) {
         if (LD1ON == false) {
             char myStr1[] = "<input value=\"1\" name=\"led\" type=\"checkbox\">";
-
             strcpy(pcInsert, myStr1);
-
             return strlen(myStr1);
-        }
-
-        else if (LD1ON == true) {
-            // since the LD3 red LED on the board is ON we make its checkbox checked!
+        } else if (LD1ON == true) {
+            // since the LD1 red LED on the board is ON we make its checkbox checked!
             char myStr1[] =
                 "<input value=\"1\" name=\"led\" type=\"checkbox\" checked>";
             strcpy(pcInsert, myStr1);
-
             return strlen(myStr1);
         }
-
-    }
-
-    else if (iIndex == 1)
-
-    {
+    } else if (iIndex == 1) {
         if (LD2ON == false) {
             char myStr2[] = "<input value=\"2\" name=\"led\" type=\"checkbox\">";
             strcpy(pcInsert, myStr2);
-
             return strlen(myStr2);
-        }
-
-        else if (LD2ON == true) {
+        } else if (LD2ON == true) {
             // since the LD2 blue LED on the board is ON we make its checkbox checked!
             char myStr2[] =
                 "<input value=\"2\" name=\"led\" type=\"checkbox\" checked>";
             strcpy(pcInsert, myStr2);
-
             return strlen(myStr2);
         }
-    }
-
-    else if (iIndex == 2)
-
-    {
-        char myStr3[] = "<textarea name=\"message\" rows=\"4\" cols=\"50\"></textarea>";
+    } else if (iIndex == 2) {
+        if (LD3ON == false) {
+            char myStr3[] = "<input value=\"3\" name=\"led\" type=\"checkbox\">";
+            strcpy(pcInsert, myStr3);
+            return strlen(myStr3);
+        } else if (LD3ON == true) {
+            // since the LD3 blue LED on the board is ON we make its checkbox checked!
+            char myStr3[] =
+                "<input value=\"3\" name=\"led\" type=\"checkbox\" checked>";
+            strcpy(pcInsert, myStr3);
+            return strlen(myStr3);
+        }
+    } else if (iIndex == 3) {
+        char myStr3[] = "<textarea style=\"resize:none\" name=\"id\" rows=\"1\" cols=\"10\"></textarea>";
         strcpy(pcInsert, myStr3);
-
+        return strlen(myStr3);
+    } else if (iIndex == 4) {
+        char myStr3[] = "<textarea style=\"resize:none\" name=\"message\" rows=\"8\" cols=\"24\"></textarea>";
+        strcpy(pcInsert, myStr3);
         return strlen(myStr3);
     }
-
     return 0;
 }
 
 // function to initialize SSI [* SSI #5 *]
 void mySSIinit(void) {
-    http_set_ssi_handler(mySSIHandler, (char const **)theSSItags,
-                         numSSItags);
+    http_set_ssi_handler(mySSIHandler, (char const **)theSSItags, numSSItags);
 }
 /* USER CODE END 0 */
 
@@ -247,6 +271,13 @@ int main(void) {
     MX_LWIP_Init();
     MX_FATFS_Init();
     /* USER CODE BEGIN 2 */
+
+    char str[20] = {0};
+    LiquidCrystal(GPIOC, GPIO_PIN_0, GPIO_PIN_1, GPIO_PIN_2, GPIOD, GPIO_PIN_4, GPIO_PIN_5, GPIO_PIN_6, GPIO_PIN_7);
+
+    sprintf(str, "Initializing...");
+    print(str);
+
     httpd_init();
 
     u32_t local_ip;
@@ -265,18 +296,9 @@ int main(void) {
     // initializing SSI [* SSI #6 *]
     mySSIinit();
 
-    GPIO_InitTypeDef LED = {
-        LD1_Pin,
-        GPIO_MODE_OUTPUT_PP,
-        GPIO_PULLUP,
-        GPIO_SPEED_FREQ_MEDIUM,
-        0};
-    HAL_GPIO_Init(LD1_GPIO_Port, &LED);
-
-    LiquidCrystal(GPIOD, GPIO_PIN_0, GPIO_PIN_1, GPIO_PIN_3, GPIO_PIN_4, GPIO_PIN_5, GPIO_PIN_6, GPIO_PIN_7);
-
-    char str[16] = {0};
-    sprintf(str, "IP = %u.%u.%u.%u", (unsigned char)(local_ip), (unsigned char)(local_ip >> 8), (unsigned char)(local_ip >> 16), (unsigned char)(local_ip >> 24));
+    memset(str, 0, 20);
+    sprintf(str, "%u.%u.%u.%u", (unsigned char)(local_ip), (unsigned char)(local_ip >> 8), (unsigned char)(local_ip >> 16), (unsigned char)(local_ip >> 24));
+    setCursor(0, 0);
     print(str);
 
     /* USER CODE END 2 */
@@ -340,23 +362,35 @@ static void MX_CAN1_Init(void) {
 
     /* USER CODE END CAN1_Init 1 */
     hcan1.Instance = CAN1;
-    hcan1.Init.Prescaler = 6;
-    hcan1.Init.Mode = CAN_MODE_NORMAL;
-    hcan1.Init.SyncJumpWidth = CAN_SJW_1TQ;
-    hcan1.Init.TimeSeg1 = CAN_BS1_3TQ;
-    hcan1.Init.TimeSeg2 = CAN_BS2_1TQ;
     hcan1.Init.TimeTriggeredMode = DISABLE;
     hcan1.Init.AutoBusOff = DISABLE;
     hcan1.Init.AutoWakeUp = DISABLE;
     hcan1.Init.AutoRetransmission = DISABLE;
     hcan1.Init.ReceiveFifoLocked = DISABLE;
     hcan1.Init.TransmitFifoPriority = DISABLE;
+    hcan1.Init.Mode = CAN_MODE_NORMAL;
+    hcan1.Init.SyncJumpWidth = CAN_SJW_1TQ;
+    hcan1.Init.TimeSeg1 = CAN_BS1_2TQ;
+    hcan1.Init.TimeSeg2 = CAN_BS2_2TQ;
+    hcan1.Init.Prescaler = 6;
+
     if (HAL_CAN_Init(&hcan1) != HAL_OK) {
         Error_Handler();
     }
     /* USER CODE BEGIN CAN1_Init 2 */
 
     /* USER CODE END CAN1_Init 2 */
+    if (HAL_CAN_Start(&hcan1) != HAL_OK) {
+        /* Start Error */
+        Error_Handler();
+    }
+
+    TxHeader.StdId = 0x321;
+    TxHeader.ExtId = 0x01;
+    TxHeader.RTR = CAN_RTR_DATA;
+    TxHeader.IDE = CAN_ID_STD;
+    TxHeader.DLC = 2;
+    TxHeader.TransmitGlobalTime = DISABLE;
 }
 
 /**

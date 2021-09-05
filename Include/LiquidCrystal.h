@@ -10,6 +10,8 @@
 #ifndef LiquidCrystal_h
 #define LiquidCrystal_h
 
+#include "stm32f2xx_hal.h"  // change this line accordingly
+
 // commands
 #define LCD_CLEARDISPLAY 0x01
 #define LCD_RETURNHOME 0x02
@@ -48,7 +50,6 @@
 #define LCD_5x10DOTS 0x04
 #define LCD_5x8DOTS 0x00
 
-
 // low-level functions
 void send(uint8_t, GPIO_PinState);
 void write4bits(uint8_t);
@@ -56,12 +57,14 @@ void write8bits(uint8_t);
 void pulseEnable(void);
 
 // initializers
-void LiquidCrystal(GPIO_TypeDef *gpioport, uint16_t rs, uint16_t rw, uint16_t enable,
-  uint16_t d0, uint16_t d1, uint16_t d2, uint16_t d3);
+void LiquidCrystal(GPIO_TypeDef *gpioport_cmds, uint16_t rs, uint16_t rw, uint16_t enable,
+                   GPIO_TypeDef *gpioport_data, uint16_t d0, uint16_t d1, uint16_t d2, uint16_t d3);
 
-void init(uint8_t fourbitmode, GPIO_TypeDef *gpioport, uint16_t rs, uint16_t rw, uint16_t enable,
-    uint16_t d0, uint16_t d1, uint16_t d2, uint16_t d3,
-    uint16_t d4, uint16_t d5, uint16_t d6, uint16_t d7);
+void init(uint8_t fourbitmode,
+          GPIO_TypeDef *gpioport, uint16_t rs, uint16_t rw, uint16_t enable,
+          GPIO_TypeDef *gpioport_data,
+          uint16_t d0, uint16_t d1, uint16_t d2, uint16_t d3,
+          uint16_t d4, uint16_t d5, uint16_t d6, uint16_t d7);
 
 void begin(uint8_t cols, uint8_t rows);
 void enableClock(void);
@@ -82,7 +85,7 @@ void leftToRight(void);
 void rightToLeft(void);
 void autoscroll(void);
 void noAutoscroll(void);
-size_t print(const char []);
+size_t print(const char[]);
 
 void setRowOffsets(int row1, int row2, int row3, int row4);
 void createChar(uint8_t, uint8_t[]);
