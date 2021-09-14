@@ -1,0 +1,98 @@
+//
+// !!! WARNING !!! AUTO-GENERATED FILE!
+// PLEASE DO NOT MODIFY IT AND USE "platformio.ini":
+// https://docs.platformio.org/page/projectconf/section_env_build.html#build-flags
+//
+{
+    "configurations": [
+        {
+            "name": "PlatformIO",
+            "includePath": [
+                "${workspaceFolder}/Include",
+                "${workspaceFolder}/Src",
+                "${workspaceFolder}/lib/LWIP/src",
+                "${workspaceFolder}/lib/FATFS/src",
+                "${workspaceFolder}/Middlewares/Third_Party/LwIP/src",
+                "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/api",
+                "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/apps/httpd",
+                "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/apps/mqtt",
+                "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/core",
+                "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/core/ipv4",
+                "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/core/ipv6",
+                "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/include",
+                "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/include/lwip",
+                "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/include/lwip/apps",
+                "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/include/lwip/priv",
+                "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/include/lwip/prot",
+                "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/include/netif",
+                "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/include/netif/ppp",
+                "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/include/posix",
+                "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/include/posix/sys",
+                "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/netif",
+                "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/netif/ppp",
+                "${workspaceFolder}/Middlewares/Third_Party/LwIP/system",
+                "${workspaceFolder}/Middlewares/Third_Party/LwIP/system/arch",
+                "${workspaceFolder}/Middlewares/Third_Party/FatFs/src",
+                "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/apps",
+                "${workspaceFolder}/Middlewares/Third_Party/FatFs/src/option",
+                "${workspaceFolder}/Drivers/CMSIS/Include",
+                "${workspaceFolder}/Drivers/CMSIS/Include",
+                "${workspaceFolder}/Drivers/STM32F2xx_HAL_Driver/Inc",
+                "${workspaceFolder}/Drivers/STM32F2xx_HAL_Driver/Inc/Legacy",
+                "${workspaceFolder}/Drivers/CMSIS/Device/ST/STM32F2xx/Include"
+            ],
+            "browse": {
+                "limitSymbolsToIncludedHeaders": true,
+                "path": [
+                    "${workspaceFolder}/Include",
+                    "${workspaceFolder}/Src",
+                    "${workspaceFolder}/lib/LWIP/src",
+                    "${workspaceFolder}/lib/FATFS/src",
+                    "${workspaceFolder}/Middlewares/Third_Party/LwIP/src",
+                    "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/api",
+                    "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/apps/httpd",
+                    "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/apps/mqtt",
+                    "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/core",
+                    "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/core/ipv4",
+                    "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/core/ipv6",
+                    "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/include",
+                    "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/include/lwip",
+                    "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/include/lwip/apps",
+                    "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/include/lwip/priv",
+                    "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/include/lwip/prot",
+                    "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/include/netif",
+                    "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/include/netif/ppp",
+                    "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/include/posix",
+                    "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/include/posix/sys",
+                    "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/netif",
+                    "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/netif/ppp",
+                    "${workspaceFolder}/Middlewares/Third_Party/LwIP/system",
+                    "${workspaceFolder}/Middlewares/Third_Party/LwIP/system/arch",
+                    "${workspaceFolder}/Middlewares/Third_Party/FatFs/src",
+                    "${workspaceFolder}/Middlewares/Third_Party/LwIP/src/apps",
+                    "${workspaceFolder}/Middlewares/Third_Party/FatFs/src/option",
+                    "${workspaceFolder}/Drivers/CMSIS/Include",
+                    "${workspaceFolder}/Drivers/CMSIS/Include",
+                    "${workspaceFolder}/Drivers/STM32F2xx_HAL_Driver/Inc",
+                    "${workspaceFolder}/Drivers/STM32F2xx_HAL_Driver/Inc/Legacy",
+                    "${workspaceFolder}/Drivers/CMSIS/Device/ST/STM32F2xx/Include"
+                ]
+            },
+            "defines": [
+                "PLATFORMIO=50101",
+                "STM32F207xx",
+                "USE_HAL_DRIVER",
+                "F_CPU=120000000L",
+                ""
+            ],
+            "cppStandard": "c++14",
+            "compilerPath": "/usr/share/gcc-arm-none-eabi-10.3-2021.07/bin/arm-none-eabi-gcc",
+            "compilerArgs": [
+                "-mthumb",
+                "-mcpu=cortex-m3",
+                ""
+            ]
+        }
+    ],
+    "version": 4
+}

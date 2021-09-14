@@ -2,14 +2,7 @@
 
 open(OUTPUT, "> Middlewares/Third_Party/LwIP/src/apps/httpd/fsdata_custom.c");
 
-#ifndef NULL
-#define NULL    0U
-#endif /* NULL */
-
-#include "fsdata.h"
-
-
-chdir("fs");
+chdir("Fs");
 open(FILES, "find . -type f |");
 
 print(OUTPUT "#ifndef NULL\r\n");
@@ -37,6 +30,8 @@ while($file = <FILES>) {
 	print(HEADER "Content-type: text/html\r\n");
     } elsif($file =~ /\.shtml$/) {
 	print(HEADER "Content-type: text/html\r\n");
+    } elsif($file =~ /\.json$/) {
+	print(HEADER "Content-type: application/json\r\n");
     } elsif($file =~ /\.gif$/) {
 	print(HEADER "Content-type: image/gif\r\n");
     } elsif($file =~ /\.png$/) {

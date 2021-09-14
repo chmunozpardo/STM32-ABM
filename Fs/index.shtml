@@ -6,20 +6,42 @@
   </head>
   <body>
     <!-- <img src="alma_logo.jpg" alt="Girl in a jacket" width="500" height="600"> -->
-    <form method="get" action="/leds.cgi">
-      <!--#tag1-->LED1 (green)
-      <br />
-      <!--#tag2-->LED2 (blue)
-      <br />
-      <!--#tag3-->LED3 (red)
-      <br />
+    <form method="get" action="/abm.cgi">
       Id
       <br />
-      <!--#tag4-->
+      <textarea
+        placeholder="0x500000"
+        style="resize: none"
+        name="id"
+        rows="1"
+        cols="12"
+      >
+<!--#tag4--></textarea
+      >
       <br />
       Message
       <br />
-      <!--#tag5-->
+      <textarea
+        placeholder="RCA,Length,Data. All in hexadecimal and no whitespaces"
+        style="resize: none"
+        name="message"
+        rows="16"
+        cols="52"
+      >
+<!--#tag5--></textarea
+      >
+      <br />
+      Received
+      <br />
+      <textarea
+        readonly
+        placeholder="RCA,Length,Data. All in hexadecimal and no whitespaces"
+        style="resize: none"
+        rows="16"
+        cols="52"
+      >
+<!--#tag6--></textarea
+      >
       <br />
       <input value="Send" type="submit" />
     </form>

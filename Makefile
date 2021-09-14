@@ -1,6 +1,6 @@
 # Compilers
-GCC = arm-none-eabi-gcc
-GPP = arm-none-eabi-g++
+GCC = @arm-none-eabi-gcc
+GPP = @arm-none-eabi-g++
 
 # ELF Filename
 EXEC_FILE = main.elf
@@ -70,21 +70,31 @@ GPPFLAGS = -mcpu=cortex-m3 -std=gnu++14 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32F207
 LDFLAGS = -mcpu=cortex-m3 -T"STM32F207ZGTX_FLASH.ld" -Wl,-Map="main.map" -Wl,--gc-sections -static -u _printf_float --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -lstdc++ -lsupc++ -Wl,--end-group
 
 all: $(EXEC_FILE)
+	@echo "Finished!"
+
+$(OBJ_DIR)/Middlewares/Third_Party/LwIP/src/apps/httpd/fs.o: Middlewares/Third_Party/LwIP/src/apps/httpd/fs.c Middlewares/Third_Party/LwIP/src/apps/httpd/fsdata_custom.c
+	@echo "Compiling $<"
+	@mkdir -p $(@D)
+	$(GCC) $< -MMD -MP -MF$(patsubst %.o, %.d,$@) $(GCCFLAGS) -MT$@ $(INCLUDES) -c -o $@
 
 $(OBJ_DIR)/%.o: %.c
+	@echo "Compiling $<"
 	@mkdir -p $(@D)
 	$(GCC) $< -MMD -MP -MF$(patsubst %.o, %.d,$@) $(GCCFLAGS) -MT$@ $(INCLUDES) -c -o $@
 
 $(OBJ_DIR)/%.opp: %.cpp
+	@echo "Compiling $<"
 	@mkdir -p $(@D)
 	$(GPP) $< -MMD -MP -MF$(patsubst %.o, %.d,$@) $(GPPFLAGS) -MT$@ $(INCLUDES) -c -o $@
 
 $(OBJ_ASM_FILES): Src/startup_stm32f207zgtx.s
+	@echo "Compiling $<"
 	@mkdir -p $(@D)
 	$(GCC) $< -MMD -MP -MF$(patsubst %.o, %.d,$@) $(ASMFLAGS) -MT$@ -o $@
 
 $(EXEC_FILE): $(OBJ_FILES) $(OBJ_CPP_FILES) $(OBJ_ASM_FILES)
+	@echo "Linking $@"
 	$(GPP) $(LDFLAGS) $^ -o $@
 
 clean:
-	rm -rf $(OBJ_DIR)/*.o
+	rm -rf $(OBJ_DIR)

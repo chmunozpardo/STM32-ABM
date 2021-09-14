@@ -18,82 +18,92 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+
 #include "main.h"
 
-#include <Stdbool.h>
 #include <bits/stdc++.h>
+#include <stdbool.h>
 #include <string.h>
 
 #include "fatfs.h"
 #include "lwip.h"
 #include "lwip/apps/httpd.h"
 
-/* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
-
-/* USER CODE END Includes */
-
-/* Private typedef -----------------------------------------------------------*/
-/* USER CODE BEGIN PTD */
-
-/* USER CODE END PTD */
-
-/* Private define ------------------------------------------------------------*/
-/* USER CODE BEGIN PD */
-/* USER CODE END PD */
-
-/* Private macro -------------------------------------------------------------*/
-/* USER CODE BEGIN PM */
-
-/* USER CODE END PM */
-
-/* Private variables ---------------------------------------------------------*/
 CAN_HandleTypeDef hcan1;
 CAN_TxHeaderTypeDef TxHeader;
+CAN_RxHeaderTypeDef RxHeader;
 uint8_t TxData[128];
+uint8_t RxData[128];
 uint32_t TxMailbox;
 HAL_StatusTypeDef err;
+
+long unsigned int ExtIdSave = 0x500000;
+
+std::vector<std::vector<unsigned int>> txVector;
+std::vector<std::vector<unsigned int>> rxVector;
 
 UART_HandleTypeDef huart3;
 
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
-/* USER CODE BEGIN PV */
-
 bool LD1ON = false;  // this variable will indicate if the LD1 LED on the board is ON or not
 bool LD2ON = false;  // this variable will indicate if our LD2 LED on the board is ON or not
 bool LD3ON = false;  // this variable will indicate if our LD3 LED on the board is ON or not
 
-// just declaring the function for the compiler [= CGI #2 =]
 const char *LedCGIhandler(int iIndex, int iNumParams, char *pcParam[],
                           char *pcValue[]);
 
-// in our SHTML file <form method="get" action="/leds.cgi"> [= CGI #3 =]
-const tCGI LedCGI = {"/leds.cgi", LedCGIhandler};
+const tCGI LedCGI = {"/abm.cgi", LedCGIhandler};
 
-// [= CGI #4 =]
 tCGI theCGItable[1];
 
-// just declaring SSI handler function [* SSI #1 *]
 u16_t mySSIHandler(int iIndex, char *pcInsert, int iInsertLen);
 
-// [* SSI #2 *]
-#define numSSItags 5
+#define numSSItags 8
 
-// [* SSI #3 *]
-char const *theSSItags[numSSItags] = {"tag1", "tag2", "tag3", "tag4", "tag5"};
+char const *theSSItags[numSSItags] = {"tag1", "tag2", "tag3", "tag4", "tag5", "tag6", "results", "id"};
 
-/* USER CODE BEGIN PV */
+std::string vectorToString(std::vector<std::vector<unsigned int>> vector) {
+    std::stringstream ss;
+    for (unsigned int i = 0; i < vector.size(); i++) {
+        ss << "0x" << std::uppercase << std::hex << vector[i][0] << ',';
+        ss << "0x" << std::uppercase << std::hex << vector[i][1];
+        if (1 < vector[i].size() - 1) ss << ',';
+        for (unsigned int j = 2; j < vector[i].size(); j++) {
+            ss << "0x" << std::uppercase << std::setfill('0') << std::setw(2) << std::hex << vector[i][j];
+            if (j < vector[i].size() - 1) ss << ',';
+        }
+        if (i < vector.size() - 1) ss << std::endl;
+    }
+    return ss.str();
+}
+
+std::string vectorToJSON(std::vector<std::vector<unsigned int>> vector) {
+    std::stringstream ss;
+    for (unsigned int i = 0; i < vector.size(); i++) {
+        ss << "[";
+        ss << "rca:" << "0x" << std::uppercase << std::hex << vector[i][0] << ',';
+        ss << "length:" << "0x" << std::uppercase << std::hex << vector[i][1];
+        if (1 < vector[i].size() - 1) ss << ',';
+        for (unsigned int j = 2; j < vector[i].size(); j++) {
+            ss << "0x" << std::uppercase << std::setfill('0') << std::setw(2) << std::hex << vector[i][j];
+            if (j < vector[i].size() - 1) ss << ',';
+        }
+        ss << "]";
+        if (i < vector.size() - 1) ss << std::endl;
+    }
+    return ss.str();
+}
 
 std::vector<std::vector<unsigned int>> tokenize(std::string str) {
     std::vector<std::vector<unsigned int>> out;
     std::string delimiter = "%2C";
     std::string delimiter2 = "%0D%0A";
-    std::string token;
-    std::string subtoken;
+    std::string subtoken(str);
     size_t pos = 0;
     size_t pos2 = 0;
     while ((pos = str.find(delimiter2)) != std::string::npos) {
+        std::string token;
         subtoken = str.substr(0, pos);
         std::vector<unsigned int> temp;
         while ((pos2 = subtoken.find(delimiter)) != std::string::npos) {
@@ -101,22 +111,21 @@ std::vector<std::vector<unsigned int>> tokenize(std::string str) {
             temp.push_back((unsigned int)std::stoi(token, nullptr, 0));
             subtoken.erase(0, pos2 + delimiter.length());
         }
-        temp.push_back((unsigned int)std::stoi(subtoken, nullptr, 0));
-        out.push_back(temp);
+        if (subtoken.size() > 0) temp.push_back((unsigned int)std::stoi(subtoken, nullptr, 0));
+        if (temp.size() > 0) out.push_back(temp);
         str.erase(0, pos + delimiter2.length());
     }
     std::vector<unsigned int> temp;
-    while ((pos2 = subtoken.find(delimiter)) != std::string::npos) {
-        token = subtoken.substr(0, pos2);
+    while ((pos2 = str.find(delimiter)) != std::string::npos) {
+        std::string token;
+        token = str.substr(0, pos2);
         temp.push_back((unsigned int)std::stoi(token, nullptr, 0));
-        subtoken.erase(0, pos2 + delimiter.length());
+        str.erase(0, pos2 + delimiter.length());
     }
-    temp.push_back((unsigned int)std::stoi(str, nullptr, 0));
-    out.push_back(temp);
+    if (str.size() > 0) temp.push_back((unsigned int)std::stoi(str, nullptr, 0));
+    if (temp.size() > 0) out.push_back(temp);
     return out;
 }
-
-/* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
@@ -124,18 +133,12 @@ static void MX_GPIO_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
 static void MX_CAN1_Init(void);
-/* USER CODE BEGIN PFP */
-
-/* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
-/* USER CODE BEGIN 0 */
-
-// the actual function for handling CGI [= CGI #5 =]
-const char *LedCGIhandler(int iIndex, int iNumParams, char *pcParam[],
-                          char *pcValue[]) {
-    uint32_t i = 0;
+const char *LedCGIhandler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[]) {
     std::vector<std::vector<unsigned int>> commandsStore;
+
+    bool outputJSON = false;
 
     if (iIndex == 0) {
         //turning the LED lights off
@@ -152,7 +155,7 @@ const char *LedCGIhandler(int iIndex, int iNumParams, char *pcParam[],
         LD3ON = false;
     }
 
-    for (i = 0; i < iNumParams; i++) {
+    for (int i = 0; i < iNumParams; i++) {
         if (strcmp(pcParam[i], "led") == 0) {
             if (strcmp(pcValue[i], "1") == 0) {
                 HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, GPIO_PIN_SET);
@@ -168,43 +171,69 @@ const char *LedCGIhandler(int iIndex, int iNumParams, char *pcParam[],
                 LD3ON = true;
             }
         } else if (strcmp(pcParam[i], "id") == 0) {
-            unsigned int idValue;
-            sscanf(pcValue[i], "0x%x", &idValue);
-            TxHeader.StdId = (u_int8_t)idValue;
-            TxHeader.ExtId = 0x01;
+            if (strcmp(pcValue[i], "") == 0)
+                ExtIdSave = 0x500000;
+            else
+                sscanf(pcValue[i], "0x%lx", &ExtIdSave);
+            TxHeader.ExtId = ExtIdSave;
         } else if (strcmp(pcParam[i], "message") == 0) {
-            int count = 0;
             std::string str(pcValue[i]);
-            commandsStore = tokenize(str);
+            if (str.size() > 0) txVector = tokenize(str);
+        } else if (strcmp(pcParam[i], "json") == 0) {
+            if (strcmp(pcValue[i], "true") == 0) {
+                outputJSON = true;
+            }
         }
     }
-
-    for (int i = 0; i < commandsStore.size(); i++) {
-        for (int j = 0; j < commandsStore[i].size(); j++) {
-            TxData[j] = commandsStore[i][j];
+    rxVector.clear();
+    for (unsigned int i = 0; i < txVector.size(); i++) {
+        TxHeader.ExtId = ExtIdSave + txVector[i][0];
+        TxHeader.DLC = txVector[i][1];
+        for (unsigned int j = 2; j < txVector[i].size(); j++) {
+            TxData[j - 2] = txVector[i][j];
         }
-        TxHeader.DLC = commandsStore[i].size();
         err = HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox);
         if (err != HAL_OK) {
             Error_Handler();
         }
-
+        if (txVector[i][1] == 0) {
+            HAL_Delay(10);
+            int rxFifoSize = HAL_CAN_GetRxFifoFillLevel(&hcan1, CAN_RX_FIFO0);
+            if (rxFifoSize > 0) {
+                for (int i = 0; i < rxFifoSize; i++) {
+                    if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &RxHeader, RxData) != HAL_OK) {
+                        /* Reception Error */
+                        Error_Handler();
+                    }
+                    std::vector<unsigned int> temp;
+                    temp.push_back(RxHeader.ExtId - ExtIdSave);
+                    temp.push_back(RxHeader.DLC);
+                    for (long unsigned int j = 0; j < RxHeader.DLC; j++) {
+                        temp.push_back(RxData[j]);
+                    }
+                    rxVector.push_back(temp);
+                }
+            }
+        }
         HAL_Delay(100);
     }
+    char tmp[20] = {0};
+    sprintf(tmp, "Sent:%04u Recv:%04u", txVector.size(), rxVector.size());
+    setCursor(0, 1);
+    print(tmp);
 
     // the extension .shtml for SSI to work
+    if (outputJSON) return "/results.json";
     return "/index.shtml";
-}  // END [= CGI #5 =]
+}
 
-// function to initialize CGI [= CGI #6 =]
 void myCGIinit(void) {
     //add LED control CGI to the table
     theCGItable[0] = LedCGI;
     //give the table to the HTTP server
     http_set_cgi_handlers(theCGItable, 1);
-}  // END [= CGI #6 =]
+}
 
-// the actual function for SSI [* SSI #4 *]
 u16_t mySSIHandler(int iIndex, char *pcInsert, int iInsertLen) {
     if (iIndex == 0) {
         if (LD1ON == false) {
@@ -243,48 +272,44 @@ u16_t mySSIHandler(int iIndex, char *pcInsert, int iInsertLen) {
             return strlen(myStr3);
         }
     } else if (iIndex == 3) {
-        char myStr3[] = "<textarea style=\"resize:none\" name=\"id\" rows=\"1\" cols=\"10\"></textarea>";
+        std::stringstream ss;
+        ss << "0x" << std::uppercase << std::hex << ExtIdSave;
+        const char *myStr3 = ss.str().c_str();
         strcpy(pcInsert, myStr3);
         return strlen(myStr3);
     } else if (iIndex == 4) {
-        char myStr3[] = "<textarea style=\"resize:none\" name=\"message\" rows=\"8\" cols=\"24\"></textarea>";
+        std::string str = vectorToString(txVector);
+        const char *myStr3 = str.c_str();
+        strcpy(pcInsert, myStr3);
+        return strlen(myStr3);
+    } else if (iIndex == 5) {
+        std::string str = vectorToString(rxVector);
+        const char *myStr3 = str.c_str();
+        strcpy(pcInsert, myStr3);
+        return strlen(myStr3);
+    } else if (iIndex == 6) {
+        char myStr3[] = "234";
         strcpy(pcInsert, myStr3);
         return strlen(myStr3);
     }
     return 0;
 }
 
-// function to initialize SSI [* SSI #5 *]
 void mySSIinit(void) {
     http_set_ssi_handler(mySSIHandler, (char const **)theSSItags, numSSItags);
 }
-/* USER CODE END 0 */
 
 /**
   * @brief  The application entry point.
   * @retval int
   */
 int main(void) {
-    /* USER CODE BEGIN 1 */
-
-    /* USER CODE END 1 */
-
     /* MCU Configuration--------------------------------------------------------*/
 
     /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
     HAL_Init();
-
-    /* USER CODE BEGIN Init */
-
-    /* USER CODE END Init */
-
     /* Configure the system clock */
     SystemClock_Config();
-
-    /* USER CODE BEGIN SysInit */
-
-    /* USER CODE END SysInit */
-
     /* Initialize all configured peripherals */
     MX_GPIO_Init();
     MX_USART3_UART_Init();
@@ -292,7 +317,6 @@ int main(void) {
     MX_CAN1_Init();
     MX_LWIP_Init();
     MX_FATFS_Init();
-    /* USER CODE BEGIN 2 */
 
     char str[20] = {0};
     LiquidCrystal(GPIOC, GPIO_PIN_0, GPIO_PIN_1, GPIO_PIN_2, GPIOD, GPIO_PIN_4, GPIO_PIN_5, GPIO_PIN_6, GPIO_PIN_7);
@@ -305,33 +329,23 @@ int main(void) {
     u32_t local_ip;
 
     while (1) {
-        /* USER CODE END WHILE */
         MX_LWIP_Process();
         local_ip = ip4_addr_get_u32(netif_ip4_addr(netif_list));
         if (local_ip != 0) break;
-        /* USER CODE BEGIN 3 */
     }
 
-    // initializing CGI  [= CGI #7 =]
     myCGIinit();
-
-    // initializing SSI [* SSI #6 *]
     mySSIinit();
 
     memset(str, 0, 20);
-    sprintf(str, "%u.%u.%u.%u", (unsigned char)(local_ip), (unsigned char)(local_ip >> 8), (unsigned char)(local_ip >> 16), (unsigned char)(local_ip >> 24));
+    sprintf(str, "%u.%u.%u.%u - OK ", (unsigned char)(local_ip), (unsigned char)(local_ip >> 8), (unsigned char)(local_ip >> 16), (unsigned char)(local_ip >> 24));
     setCursor(0, 0);
     print(str);
 
-    /* USER CODE END 2 */
     /* Infinite loop */
-    /* USER CODE BEGIN WHILE */
     while (1) {
-        /* USER CODE END WHILE */
         MX_LWIP_Process();
-        /* USER CODE BEGIN 3 */
     }
-    /* USER CODE END 3 */
 }
 
 /**
@@ -376,13 +390,8 @@ void SystemClock_Config(void) {
   * @retval None
   */
 static void MX_CAN1_Init(void) {
-    /* USER CODE BEGIN CAN1_Init 0 */
+    CAN_FilterTypeDef sFilterConfig;
 
-    /* USER CODE END CAN1_Init 0 */
-
-    /* USER CODE BEGIN CAN1_Init 1 */
-
-    /* USER CODE END CAN1_Init 1 */
     hcan1.Instance = CAN1;
     hcan1.Init.TimeTriggeredMode = DISABLE;
     hcan1.Init.AutoBusOff = DISABLE;
@@ -399,18 +408,30 @@ static void MX_CAN1_Init(void) {
     if (HAL_CAN_Init(&hcan1) != HAL_OK) {
         Error_Handler();
     }
-    /* USER CODE BEGIN CAN1_Init 2 */
 
-    /* USER CODE END CAN1_Init 2 */
-    if (HAL_CAN_Start(&hcan1) != HAL_OK) {
-        /* Start Error */
+    sFilterConfig.FilterBank = 0;
+    sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
+    sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
+    sFilterConfig.FilterIdHigh = 0x0000;
+    sFilterConfig.FilterIdLow = 0x0000;
+    sFilterConfig.FilterMaskIdHigh = 0x0000;
+    sFilterConfig.FilterMaskIdLow = 0x0000;
+    sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
+    sFilterConfig.FilterActivation = ENABLE;
+    sFilterConfig.SlaveStartFilterBank = 14;
+
+    if (HAL_CAN_ConfigFilter(&hcan1, &sFilterConfig) != HAL_OK) {
         Error_Handler();
     }
 
-    TxHeader.StdId = 0x321;
-    TxHeader.ExtId = 0x01;
+    if (HAL_CAN_Start(&hcan1) != HAL_OK) {
+        Error_Handler();
+    }
+
+    TxHeader.StdId = 0x0;
+    TxHeader.ExtId = 0x0;
     TxHeader.RTR = CAN_RTR_DATA;
-    TxHeader.IDE = CAN_ID_STD;
+    TxHeader.IDE = CAN_ID_EXT;
     TxHeader.DLC = 2;
     TxHeader.TransmitGlobalTime = DISABLE;
 }
@@ -421,13 +442,6 @@ static void MX_CAN1_Init(void) {
   * @retval None
   */
 static void MX_USART3_UART_Init(void) {
-    /* USER CODE BEGIN USART3_Init 0 */
-
-    /* USER CODE END USART3_Init 0 */
-
-    /* USER CODE BEGIN USART3_Init 1 */
-
-    /* USER CODE END USART3_Init 1 */
     huart3.Instance = USART3;
     huart3.Init.BaudRate = 115200;
     huart3.Init.WordLength = UART_WORDLENGTH_8B;
@@ -439,9 +453,6 @@ static void MX_USART3_UART_Init(void) {
     if (HAL_UART_Init(&huart3) != HAL_OK) {
         Error_Handler();
     }
-    /* USER CODE BEGIN USART3_Init 2 */
-
-    /* USER CODE END USART3_Init 2 */
 }
 
 /**
@@ -450,13 +461,6 @@ static void MX_USART3_UART_Init(void) {
   * @retval None
   */
 static void MX_USB_OTG_FS_PCD_Init(void) {
-    /* USER CODE BEGIN USB_OTG_FS_Init 0 */
-
-    /* USER CODE END USB_OTG_FS_Init 0 */
-
-    /* USER CODE BEGIN USB_OTG_FS_Init 1 */
-
-    /* USER CODE END USB_OTG_FS_Init 1 */
     hpcd_USB_OTG_FS.Instance = USB_OTG_FS;
     hpcd_USB_OTG_FS.Init.dev_endpoints = 4;
     hpcd_USB_OTG_FS.Init.speed = PCD_SPEED_FULL;
@@ -469,9 +473,18 @@ static void MX_USB_OTG_FS_PCD_Init(void) {
     if (HAL_PCD_Init(&hpcd_USB_OTG_FS) != HAL_OK) {
         Error_Handler();
     }
-    /* USER CODE BEGIN USB_OTG_FS_Init 2 */
+}
 
-    /* USER CODE END USB_OTG_FS_Init 2 */
+/**
+  * @brief EXTI line detection callbacks
+  * @param GPIO_Pin: Specifies the pins connected EXTI line
+  * @retval None
+  */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+    if (GPIO_Pin == USER_Btn_Pin) {
+        /* Toggle LED1 */
+        HAL_GPIO_TogglePin(LD1_GPIO_Port, LD1_Pin);
+    }
 }
 
 /**
@@ -498,9 +511,12 @@ static void MX_GPIO_Init(void) {
 
     /*Configure GPIO pin : USER_Btn_Pin */
     GPIO_InitStruct.Pin = USER_Btn_Pin;
-    GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+    GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(USER_Btn_GPIO_Port, &GPIO_InitStruct);
+
+    HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0x0F, 0);
+    HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
     /*Configure GPIO pins : LD1_Pin LD3_Pin LD2_Pin */
     GPIO_InitStruct.Pin = LD1_Pin | LD3_Pin | LD2_Pin;
@@ -522,10 +538,6 @@ static void MX_GPIO_Init(void) {
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(USB_OverCurrent_GPIO_Port, &GPIO_InitStruct);
 }
-
-/* USER CODE BEGIN 4 */
-
-/* USER CODE END 4 */
 
 /**
   * @brief  This function is executed in case of error occurrence.
