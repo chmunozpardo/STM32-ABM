@@ -38,6 +38,7 @@ uint32_t TxMailbox;
 HAL_StatusTypeDef err;
 
 long unsigned int ExtIdSave = 0x500000;
+unsigned int delaySave = 10;
 
 std::vector<std::vector<unsigned int>> txVector;
 std::vector<std::vector<unsigned int>> rxVector;
@@ -59,9 +60,9 @@ tCGI theCGItable[1];
 
 u16_t mySSIHandler(int iIndex, char *pcInsert, int iInsertLen);
 
-#define numSSItags 8
+#define numSSItags 6
 
-char const *theSSItags[numSSItags] = {"tag1", "tag2", "tag3", "tag4", "tag5", "tag6", "results", "id"};
+char const *theSSItags[numSSItags] = {"id", "sent", "received", "sentjson", "receivedjson", "delay"};
 
 std::string vectorToString(std::vector<std::vector<unsigned int>> vector) {
     std::stringstream ss;
@@ -80,18 +81,27 @@ std::string vectorToString(std::vector<std::vector<unsigned int>> vector) {
 
 std::string vectorToJSON(std::vector<std::vector<unsigned int>> vector) {
     std::stringstream ss;
+    ss << "[";
     for (unsigned int i = 0; i < vector.size(); i++) {
-        ss << "[";
-        ss << "rca:" << "0x" << std::uppercase << std::hex << vector[i][0] << ',';
-        ss << "length:" << "0x" << std::uppercase << std::hex << vector[i][1];
-        if (1 < vector[i].size() - 1) ss << ',';
-        for (unsigned int j = 2; j < vector[i].size(); j++) {
-            ss << "0x" << std::uppercase << std::setfill('0') << std::setw(2) << std::hex << vector[i][j];
-            if (j < vector[i].size() - 1) ss << ',';
+        ss << "{";
+        ss << "\"rca\":"
+           << "\"0x" << std::uppercase << std::hex << vector[i][0] << "\",";
+        ss << "\"length\":"
+           << "\"0x" << std::uppercase << std::hex << vector[i][1] << "\"";
+        if (1 < vector[i].size() - 1) {
+            ss << ",\"data\":[";
         }
-        ss << "]";
-        if (i < vector.size() - 1) ss << std::endl;
+        for (unsigned int j = 2; j < vector[i].size(); j++) {
+            ss << "\"0x" << std::uppercase << std::setfill('0') << std::setw(2) << std::hex << vector[i][j] << "\"";
+            if (j < vector[i].size() - 1)
+                ss << ",";
+            else
+                ss << "]";
+        }
+        ss << "}";
+        if (i < vector.size() - 1) ss << ",";
     }
+    ss << "]";
     return ss.str();
 }
 
@@ -156,21 +166,7 @@ const char *LedCGIhandler(int iIndex, int iNumParams, char *pcParam[], char *pcV
     }
 
     for (int i = 0; i < iNumParams; i++) {
-        if (strcmp(pcParam[i], "led") == 0) {
-            if (strcmp(pcValue[i], "1") == 0) {
-                HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, GPIO_PIN_SET);
-                // LD1 LED (green) on the board is ON!
-                LD1ON = true;
-            } else if (strcmp(pcValue[i], "2") == 0) {
-                HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
-                // LD2 LED (blue) on the board is ON!
-                LD2ON = true;
-            } else if (strcmp(pcValue[i], "3") == 0) {
-                HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_SET);
-                // LD3 LED (red) on the board is ON!
-                LD3ON = true;
-            }
-        } else if (strcmp(pcParam[i], "id") == 0) {
+        if (strcmp(pcParam[i], "id") == 0) {
             if (strcmp(pcValue[i], "") == 0)
                 ExtIdSave = 0x500000;
             else
@@ -183,6 +179,11 @@ const char *LedCGIhandler(int iIndex, int iNumParams, char *pcParam[], char *pcV
             if (strcmp(pcValue[i], "true") == 0) {
                 outputJSON = true;
             }
+        } else if (strcmp(pcParam[i], "delay") == 0) {
+            if (strcmp(pcValue[i], "") == 0)
+                delaySave = 10;
+            else
+                delaySave = (unsigned int)std::stoi(pcValue[i], nullptr, 0);
         }
     }
     rxVector.clear();
@@ -215,7 +216,7 @@ const char *LedCGIhandler(int iIndex, int iNumParams, char *pcParam[], char *pcV
                 }
             }
         }
-        HAL_Delay(100);
+        HAL_Delay(delaySave);
     }
     char tmp[20] = {0};
     sprintf(tmp, "Sent:%04u Recv:%04u", txVector.size(), rxVector.size());
@@ -236,59 +237,34 @@ void myCGIinit(void) {
 
 u16_t mySSIHandler(int iIndex, char *pcInsert, int iInsertLen) {
     if (iIndex == 0) {
-        if (LD1ON == false) {
-            char myStr1[] = "<input value=\"1\" name=\"led\" type=\"checkbox\">";
-            strcpy(pcInsert, myStr1);
-            return strlen(myStr1);
-        } else if (LD1ON == true) {
-            // since the LD1 red LED on the board is ON we make its checkbox checked!
-            char myStr1[] =
-                "<input value=\"1\" name=\"led\" type=\"checkbox\" checked>";
-            strcpy(pcInsert, myStr1);
-            return strlen(myStr1);
-        }
-    } else if (iIndex == 1) {
-        if (LD2ON == false) {
-            char myStr2[] = "<input value=\"2\" name=\"led\" type=\"checkbox\">";
-            strcpy(pcInsert, myStr2);
-            return strlen(myStr2);
-        } else if (LD2ON == true) {
-            // since the LD2 blue LED on the board is ON we make its checkbox checked!
-            char myStr2[] =
-                "<input value=\"2\" name=\"led\" type=\"checkbox\" checked>";
-            strcpy(pcInsert, myStr2);
-            return strlen(myStr2);
-        }
-    } else if (iIndex == 2) {
-        if (LD3ON == false) {
-            char myStr3[] = "<input value=\"3\" name=\"led\" type=\"checkbox\">";
-            strcpy(pcInsert, myStr3);
-            return strlen(myStr3);
-        } else if (LD3ON == true) {
-            // since the LD3 blue LED on the board is ON we make its checkbox checked!
-            char myStr3[] =
-                "<input value=\"3\" name=\"led\" type=\"checkbox\" checked>";
-            strcpy(pcInsert, myStr3);
-            return strlen(myStr3);
-        }
-    } else if (iIndex == 3) {
         std::stringstream ss;
         ss << "0x" << std::uppercase << std::hex << ExtIdSave;
         const char *myStr3 = ss.str().c_str();
         strcpy(pcInsert, myStr3);
         return strlen(myStr3);
-    } else if (iIndex == 4) {
+    } else if (iIndex == 1) {
         std::string str = vectorToString(txVector);
         const char *myStr3 = str.c_str();
         strcpy(pcInsert, myStr3);
         return strlen(myStr3);
-    } else if (iIndex == 5) {
+    } else if (iIndex == 2) {
         std::string str = vectorToString(rxVector);
         const char *myStr3 = str.c_str();
         strcpy(pcInsert, myStr3);
         return strlen(myStr3);
-    } else if (iIndex == 6) {
-        char myStr3[] = "234";
+    } else if (iIndex == 3) {
+        std::string str = vectorToJSON(txVector);
+        const char *myStr3 = str.c_str();
+        strcpy(pcInsert, myStr3);
+        return strlen(myStr3);
+    } else if (iIndex == 4) {
+        std::string str = vectorToJSON(rxVector);
+        const char *myStr3 = str.c_str();
+        strcpy(pcInsert, myStr3);
+        return strlen(myStr3);
+    } else if (iIndex == 5) {
+        std::string str = std::to_string(delaySave);
+        const char *myStr3 = str.c_str();
         strcpy(pcInsert, myStr3);
         return strlen(myStr3);
     }

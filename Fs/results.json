@@ -1,4 +1,6 @@
 {
-    "id": "<!--#tag4-->",
-    "results": "<!--#results-->"
+    "id": "<!--#id-->",
+    "delay": <!--#delay-->,
+    "sent": <!--#sentjson-->,
+    "received": <!--#receivedjson-->
 }

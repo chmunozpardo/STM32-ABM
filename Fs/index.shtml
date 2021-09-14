@@ -16,7 +16,19 @@
         rows="1"
         cols="12"
       >
-<!--#tag4--></textarea
+<!--#id--></textarea
+      >
+      <br />
+      Delay
+      <br />
+      <textarea
+        placeholder="10. In milliseconds"
+        style="resize: none"
+        name="id"
+        rows="1"
+        cols="12"
+      >
+<!--#delay--></textarea
       >
       <br />
       Message
@@ -28,7 +40,7 @@
         rows="16"
         cols="52"
       >
-<!--#tag5--></textarea
+<!--#sent--></textarea
       >
       <br />
       Received
@@ -40,7 +52,7 @@
         rows="16"
         cols="52"
       >
-<!--#tag6--></textarea
+<!--#received--></textarea
       >
       <br />
       <input value="Send" type="submit" />
