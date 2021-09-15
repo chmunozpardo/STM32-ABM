@@ -48,7 +48,7 @@
 /* LwIP Stack Parameters (modified compared to initialization value in opt.h) -*/
 /* Parameters set in STM32CubeMX LwIP Configuration GUI -*/
 #define LWIP_HTTPD_MAX_TAG_NAME_LEN 16
-#define LWIP_HTTPD_MAX_TAG_INSERT_LEN 512
+#define LWIP_HTTPD_MAX_TAG_INSERT_LEN 1024
 #define LWIP_HTTPD_SSI_INCLUDE_TAG 0
 #define LWIP_HTTPD_SSI 1
 #define LWIP_HTTPD_CGI 1
